@@ -297,7 +297,8 @@ extern "C" {
     return array;
   }
 
-  static VALUE re2_matchdata_nth_match(int nth, VALUE self) {
+  static re2::StringPiece *
+  re2_matchdata_nth_stringpiece(int nth, VALUE self) {
     re2_matchdata *m;
     re2_pattern *p;
     re2::StringPiece match;
@@ -306,20 +307,15 @@ extern "C" {
     Data_Get_Struct(m->regexp, re2_pattern, p);
 
     if (nth < 0 || nth >= m->number_of_matches) {
-      return Qnil;
+      return NULL;
     } else {
-      match = m->matches[nth];
-
-      if (match.empty()) {
-        return Qnil;
-      } else {
-        return ENCODED_STR_NEW(match.data(), match.size(),
-            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
-      }
+      return m->matches + nth;
     }
   }
 
-  static VALUE re2_matchdata_named_match(const char* name, VALUE self) {
+  static re2::StringPiece *
+  re2_matchdata_named_stringpiece(const char* name, VALUE self)
+  {
     int idx;
     re2_matchdata *m;
     re2_pattern *p;
@@ -333,9 +329,52 @@ extern "C" {
 
     if (groups.count(name_as_string) == 1) {
       idx = groups[name_as_string];
-      return re2_matchdata_nth_match(idx, self);
+      return re2_matchdata_nth_stringpiece(idx, self);
     } else {
+      return NULL;
+    }
+  }
+
+  static re2::StringPiece *re2_matchdata_stringpiece_at(VALUE idx, VALUE self) {
+    if (TYPE(idx) == T_STRING) {
+      return re2_matchdata_named_stringpiece(StringValuePtr(idx), self);
+    } else if (TYPE(idx) == T_SYMBOL) {
+      return re2_matchdata_named_stringpiece(rb_id2name(SYM2ID(idx)), self);
+    } else if (FIXNUM_P(idx)) {
+      return re2_matchdata_nth_stringpiece(FIX2INT(idx), self);
+    }
+    return NULL;
+  }
+
+  static VALUE re2_matchdata_nth_match(int nth, VALUE self) {
+    re2::StringPiece *match = re2_matchdata_nth_stringpiece(nth, self);
+    re2_matchdata *m;
+    re2_pattern *p;
+
+    Data_Get_Struct(self, re2_matchdata, m);
+    Data_Get_Struct(m->regexp, re2_pattern, p);
+
+    if (!match || match->empty()) {
       return Qnil;
+    } else {
+      return ENCODED_STR_NEW(match->data(), match->size(),
+            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+    }
+  }
+
+  static VALUE re2_matchdata_named_match(const char* name, VALUE self) {
+    re2_matchdata *m;
+    re2_pattern *p;
+    re2::StringPiece *match = re2_matchdata_named_stringpiece(name, self);
+
+    Data_Get_Struct(self, re2_matchdata, m);
+    Data_Get_Struct(m->regexp, re2_pattern, p);
+
+    if (!match) {
+      return Qnil;
+    } else {
+      return ENCODED_STR_NEW(match->data(), match->size(),
+            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
     }
   }
 
@@ -395,6 +434,56 @@ extern "C" {
     } else {
       return re2_matchdata_nth_match(FIX2INT(idx), self);
     }
+  }
+
+  static VALUE re2_matchdata_begin(int argc, VALUE *argv, VALUE self) {
+    VALUE idx;
+    rb_scan_args(argc, argv, "01", &idx);
+    idx = NIL_P(idx) ? INT2FIX(0) : idx;
+    re2::StringPiece *match = re2_matchdata_stringpiece_at(idx, self);
+    if (!match) {
+      return Qnil;
+    }
+
+    re2_matchdata *m = NULL;
+    re2_pattern *p = NULL;
+    Data_Get_Struct(self, re2_matchdata, m);
+    Data_Get_Struct(m->regexp, re2_pattern, p);
+
+    // Calculating the position is non-trivial, since the position is
+    // the number of characters from the start of the text, not octets:
+    const char *text = StringValuePtr(m->text);
+    const size_t length = match->data() - text;
+    VALUE pre_match = ENCODED_STR_NEW(text, length,
+                      p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+    VALUE res = LONG2FIX(rb_str_strlen(pre_match));
+    rb_str_free(pre_match);
+    return res;
+  }
+
+  static VALUE re2_matchdata_end(int argc, VALUE *argv, VALUE self) {
+    VALUE idx;
+    rb_scan_args(argc, argv, "01", &idx);
+    idx = NIL_P(idx) ? INT2FIX(0) : idx;
+    re2::StringPiece *match = re2_matchdata_stringpiece_at(idx, self);
+    if (!match) {
+      return Qnil;
+    }
+
+    re2_matchdata *m;
+    re2_pattern *p;
+    Data_Get_Struct(self, re2_matchdata, m);
+    Data_Get_Struct(m->regexp, re2_pattern, p);
+
+    // Calculating the position is non-trivial, since the position is
+    // the number of characters from the start of the text, not octets:
+    const char *text = StringValuePtr(m->text);
+    const size_t length = match->data() - text;
+    VALUE pre_match = ENCODED_STR_NEW(text, length + match->length(),
+                      p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+    VALUE res = LONG2FIX(rb_str_strlen(pre_match));
+    rb_str_free(pre_match);
+    return res;
   }
 
   /*
@@ -1021,6 +1110,9 @@ extern "C" {
       return BOOL2RUBY(matched);
     } else {
 
+      if (n < 0) {
+          n = 0;
+      }
       /* Because match returns the whole match as well. */
       n += 1;
 
@@ -1038,8 +1130,8 @@ extern "C" {
 
       m->number_of_matches = n;
 
-      matched = match(p->pattern, StringValuePtr(text), 0,
-                      static_cast<int>(RSTRING_LEN(text)),
+      matched = match(p->pattern, StringValuePtr(m->text), 0,
+                      static_cast<int>(RSTRING_LEN(m->text)),
                       RE2::UNANCHORED, m->matches, n);
 
       if (matched) {
@@ -1228,6 +1320,12 @@ extern "C" {
     rb_define_method(re2_cMatchData, "[]", RUBY_METHOD_FUNC(re2_matchdata_aref),
         -1); rb_define_method(re2_cMatchData, "to_s",
           RUBY_METHOD_FUNC(re2_matchdata_to_s), 0);
+    rb_define_method(re2_cMatchData, "begin",
+                     RUBY_METHOD_FUNC(re2_matchdata_begin),
+        -1);
+    rb_define_method(re2_cMatchData, "end",
+                     RUBY_METHOD_FUNC(re2_matchdata_end),
+        -1);
     rb_define_method(re2_cMatchData, "inspect",
         RUBY_METHOD_FUNC(re2_matchdata_inspect), 0);
 

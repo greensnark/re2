@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require "spec_helper"
 
 describe RE2::MatchData do
@@ -83,6 +84,50 @@ describe RE2::MatchData do
         md["name"].encoding.name.must_equal("ISO-8859-1")
         md[:name].encoding.name.must_equal("ISO-8859-1")
       end
+    end
+  end
+
+  describe "#begin" do
+    it "returns the index in the search text where the match occurred" do
+      match = RE2::Regexp.new("(ti)").match("aegypti")
+      match.begin(1).must_equal(5)
+    end
+
+    it "returns the index of the zeroth match if unspecified" do
+      match = RE2::Regexp.new("..(ti)").match("aegypti")
+      match.begin().must_equal(3)
+    end
+
+    it "reports indexes in UTF-8 text as unicode character offsets" do
+      match = RE2::Regexp.new(".(ら)").match("世界中のあらゆ")
+      match.begin(0).must_equal(4)
+    end
+
+    it "reports indexes for named captures" do
+      match = RE2::Regexp.new(".(?P<capture>ら)").match("世界中のあらゆ")
+      match.begin(:capture).must_equal(5)
+    end
+  end
+
+  describe "#end" do
+    it "returns the index in the search text where the match occurred" do
+      match = RE2::Regexp.new("(ti)").match("aegypti")
+      match.end(1).must_equal(7)
+    end
+
+    it "returns the index of the zeroth match if unspecified" do
+      match = RE2::Regexp.new("..(ti)").match("aegypti")
+      match.end().must_equal(7)
+    end
+
+    it "reports indexes in UTF-8 text as unicode character offsets" do
+      match = RE2::Regexp.new(".(ら)").match("世界中のあらゆ")
+      match.end(0).must_equal(6)
+    end
+
+    it "reports indexes for named captures" do
+      match = RE2::Regexp.new(".(?P<capture>ら).").match("世界中のあらゆ")
+      match.end(:capture).must_equal(6)
     end
   end
 
