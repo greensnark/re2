@@ -1111,7 +1111,7 @@ extern "C" {
     } else {
 
       if (n < 0) {
-          n = 0;
+        n = p->pattern->NumberOfCapturingGroups();
       }
       /* Because match returns the whole match as well. */
       n += 1;

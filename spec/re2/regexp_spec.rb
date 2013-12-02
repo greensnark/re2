@@ -307,6 +307,33 @@ describe RE2::Regexp do
         subject[6].must_be_nil
       end
     end
+
+    describe "with negative number of matches" do
+      describe "with no capturing groups" do
+        let (:re) { RE2::Regexp.new('Hello, \S+') }
+        subject { re.match("Hello, sailor", -1) }
+
+        it "returns a match object" do
+          subject.must_be_instance_of(RE2::MatchData)
+          subject[0].must_equal('Hello, sailor')
+        end
+      end
+
+      describe "with capturing groups" do
+        let (:re) { RE2::Regexp.new('Hello, (\S+)') }
+        subject { re.match("Hello, sailor", -1) }
+        it "returns a match object" do
+          subject.must_be_instance_of(RE2::MatchData)
+          subject[0].must_equal('Hello, sailor')
+        end
+
+        it "returns captures" do
+          subject.must_be_instance_of(RE2::MatchData)
+          subject[0].must_equal('Hello, sailor')
+          subject[1].must_equal('sailor')
+        end
+      end
+    end
   end
 
   describe "#match?" do
