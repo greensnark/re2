@@ -1092,9 +1092,9 @@ extern "C" {
     bool matched;
     re2_pattern *p;
     re2_matchdata *m;
-    VALUE text, number_of_matches, matchdata;
+    VALUE text, number_of_matches, start_offset, matchdata;
 
-    rb_scan_args(argc, argv, "11", &text, &number_of_matches);
+    rb_scan_args(argc, argv, "12", &text, &number_of_matches, &start_offset);
 
     Data_Get_Struct(self, re2_pattern, p);
 
@@ -1130,8 +1130,20 @@ extern "C" {
 
       m->number_of_matches = n;
 
-      matched = match(p->pattern, StringValuePtr(m->text), 0,
-                      static_cast<int>(RSTRING_LEN(m->text)),
+      int start_index = NIL_P(start_offset) ? 0L : FIX2INT(start_offset);
+      int length = static_cast<int>(RSTRING_LEN(m->text));
+
+      // If the start_index is specified, it will be a character
+      // index. Convert that to an octet index (FIXME: this can be
+      // done more efficiently, right?)
+      if (start_index) {
+        VALUE substr = rb_str_substr(m->text, 0, start_index);
+        start_index = static_cast<int>(RSTRING_LEN(substr));
+      }
+
+      matched = match(p->pattern, StringValuePtr(m->text),
+                      start_index,
+                      length,
                       RE2::UNANCHORED, m->matches, n);
 
       if (matched) {

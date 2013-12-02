@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require "spec_helper"
 
 describe RE2::Regexp do
@@ -331,6 +332,27 @@ describe RE2::Regexp do
           subject.must_be_instance_of(RE2::MatchData)
           subject[0].must_equal('Hello, sailor')
           subject[1].must_equal('sailor')
+        end
+      end
+    end
+
+    describe "with start offset" do
+      describe "general behavior" do
+        let (:re) { RE2::Regexp.new(".(.)") }
+        let (:text) { "世界中のあらゆ" }
+
+        it "will begin the match at the specified offset" do
+          re.match(text, -1, 2).begin.must_equal(2)
+          re.match(text, -1, 2)[1].must_equal("の")
+        end
+      end
+
+      describe "word boundaries" do
+        let (:re) { RE2::Regexp.new('\b([a-z])') }
+        let (:text) { "How now" }
+        it "will match word boundaries" do
+          re.match(text, 2)[1].must_equal('n')
+          re.match(text, 2).begin(1).must_equal(4)
         end
       end
     end
