@@ -457,7 +457,6 @@ extern "C" {
     VALUE pre_match = ENCODED_STR_NEW(text, length,
                       p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
     VALUE res = LONG2FIX(rb_str_strlen(pre_match));
-    rb_str_free(pre_match);
     return res;
   }
 
@@ -482,7 +481,6 @@ extern "C" {
     VALUE pre_match = ENCODED_STR_NEW(text, length + match->length(),
                       p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
     VALUE res = LONG2FIX(rb_str_strlen(pre_match));
-    rb_str_free(pre_match);
     return res;
   }
 
