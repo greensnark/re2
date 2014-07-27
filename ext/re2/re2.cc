@@ -1267,7 +1267,8 @@ extern "C" {
 
     /* Convert all the inputs to be pumped into RE2::GlobalReplace. */
     re2_pattern *p;
-    string str_as_string(StringValuePtr(str));
+    const char *str_ptr = StringValuePtr(str);
+    string str_as_string(str_ptr, 0, RSTRING_LEN(str));
     VALUE repl;
 
     /* Do the replacement. */
@@ -1282,6 +1283,7 @@ extern "C" {
     /* Save the replacement as a VALUE. */
     repl = rb_str_new(str_as_string.data(), str_as_string.size());
 
+    rb_str_modify(str);
     /* Replace the original string with the replacement. */
     if (RSTRING_LEN(str) != RSTRING_LEN(repl)) {
       rb_str_resize(str, RSTRING_LEN(repl));
