@@ -205,7 +205,7 @@ extern "C" {
         } else {
           rb_ary_push(result, ENCODED_STR_NEW(matches[i].data(),
                 matches[i].size(),
-                p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1"));
+                p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1"));
         }
       }
     } else {
@@ -290,7 +290,7 @@ extern "C" {
       } else {
         match = m->matches[i];
         rb_ary_push(array, ENCODED_STR_NEW(match.data(), match.size(),
-              p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1"));
+              p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1"));
       }
     }
 
@@ -358,7 +358,7 @@ extern "C" {
       return Qnil;
     } else {
       return ENCODED_STR_NEW(match->data(), match->size(),
-            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+            p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
     }
   }
 
@@ -374,7 +374,7 @@ extern "C" {
       return Qnil;
     } else {
       return ENCODED_STR_NEW(match->data(), match->size(),
-            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+            p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
     }
   }
 
@@ -455,7 +455,7 @@ extern "C" {
     const char *text = StringValuePtr(m->text);
     const size_t length = match->data() - text;
     VALUE pre_match = ENCODED_STR_NEW(text, length,
-                      p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+                      p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
     VALUE res = LONG2FIX(rb_str_strlen(pre_match));
     return res;
   }
@@ -479,7 +479,7 @@ extern "C" {
     const char *text = StringValuePtr(m->text);
     const size_t length = match->data() - text;
     VALUE pre_match = ENCODED_STR_NEW(text, length + match->length(),
-                      p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+                      p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
     VALUE res = LONG2FIX(rb_str_strlen(pre_match));
     return res;
   }
@@ -532,7 +532,7 @@ extern "C" {
     output << ">";
 
     result = ENCODED_STR_NEW(output.str().data(), output.str().length(),
-        p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+        p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
 
     return result;
   }
@@ -605,7 +605,7 @@ extern "C" {
 
       utf8 = rb_hash_aref(options, ID2SYM(id_utf8));
       if (!NIL_P(utf8)) {
-        re2_options.set_utf8(RTEST(utf8));
+        re2_options.set_encoding(RTEST(utf8) ? re2::RE2::Options::EncodingUTF8 : re2::RE2::Options::EncodingLatin1);
       }
 
       posix_syntax = rb_hash_aref(options, ID2SYM(id_posix_syntax));
@@ -688,7 +688,7 @@ extern "C" {
     output << "#<RE2::Regexp /" << p->pattern->pattern() << "/>";
 
     result = ENCODED_STR_NEW(output.str().data(), output.str().length(),
-        p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+        p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
 
     return result;
   }
@@ -706,7 +706,7 @@ extern "C" {
     Data_Get_Struct(self, re2_pattern, p);
     return ENCODED_STR_NEW(p->pattern->pattern().data(),
         p->pattern->pattern().size(),
-        p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+        p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
   }
 
   /*
@@ -736,7 +736,7 @@ extern "C" {
   static VALUE re2_regexp_utf8(VALUE self) {
     re2_pattern *p;
     Data_Get_Struct(self, re2_pattern, p);
-    return BOOL2RUBY(p->pattern->options().utf8());
+    return BOOL2RUBY(p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8);
   }
 
   /*
@@ -933,7 +933,7 @@ extern "C" {
     } else {
       return ENCODED_STR_NEW(p->pattern->error_arg().data(),
           p->pattern->error_arg().size(),
-          p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1");
+          p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1");
     }
   }
 
@@ -964,7 +964,7 @@ extern "C" {
     options = rb_hash_new();
 
     rb_hash_aset(options, ID2SYM(id_utf8),
-        BOOL2RUBY(p->pattern->options().utf8()));
+        BOOL2RUBY(p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8));
 
     rb_hash_aset(options, ID2SYM(id_posix_syntax),
         BOOL2RUBY(p->pattern->options().posix_syntax()));
@@ -1034,7 +1034,7 @@ extern "C" {
     for (iterator = groups.begin(); iterator != groups.end(); iterator++) {
       rb_hash_aset(capturing_groups,
           ENCODED_STR_NEW(iterator->first.data(), iterator->first.size(),
-            p->pattern->options().utf8() ? "UTF-8" : "ISO-8859-1"),
+            p->pattern->options().encoding() == re2::RE2::Options::EncodingUTF8 ? "UTF-8" : "ISO-8859-1"),
           INT2FIX(iterator->second));
     }
 

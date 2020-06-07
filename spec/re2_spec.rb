@@ -34,7 +34,7 @@ describe RE2 do
     it "raises an error if the string is frozen" do
       frozen_name = "Arnold".freeze
 
-      proc { RE2.Replace(frozen_name, "o", "a") }.must_raise(TypeError, RuntimeError)
+      proc { RE2.Replace(frozen_name, "o", "a") }.must_raise(FrozenError)
     end
 
     if String.method_defined?(:encoding)
@@ -79,7 +79,7 @@ describe RE2 do
     it "raises an error if the string is frozen" do
       frozen_name = "Arnold".freeze
 
-      proc { RE2.GlobalReplace(frozen_name, "o", "a") }.must_raise(TypeError, RuntimeError)
+      proc { RE2.GlobalReplace(frozen_name, "o", "a") }.must_raise(FrozenError)
     end
   end
 
