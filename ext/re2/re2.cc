@@ -1102,53 +1102,46 @@ extern "C" {
       n = p->pattern->NumberOfCapturingGroups();
     }
 
-    if (n == 0) {
-      matched = match(p->pattern, StringValuePtr(text), 0,
-          static_cast<int>(RSTRING_LEN(text)), RE2::UNANCHORED, 0, 0);
-      return BOOL2RUBY(matched);
+    if (n < 0) {
+      n = p->pattern->NumberOfCapturingGroups();
+    }
+    /* Because match returns the whole match as well. */
+    n += 1;
+
+    matchdata = rb_class_new_instance(0, 0, re2_cMatchData);
+    Data_Get_Struct(matchdata, re2_matchdata, m);
+    m->matches = new(nothrow) re2::StringPiece[n];
+    m->regexp = self;
+    m->text = rb_str_dup(text);
+    rb_str_freeze(m->text);
+
+    if (m->matches == 0) {
+      rb_raise(rb_eNoMemError,
+               "not enough memory to allocate StringPieces for matches");
+    }
+
+    m->number_of_matches = n;
+
+    int start_index = NIL_P(start_offset) ? 0L : FIX2INT(start_offset);
+    int length = static_cast<int>(RSTRING_LEN(m->text));
+
+    // If the start_index is specified, it will be a character
+    // index. Convert that to an octet index (FIXME: this can be
+    // done more efficiently, right?)
+    if (start_index) {
+      VALUE substr = rb_str_substr(m->text, 0, start_index);
+      start_index = static_cast<int>(RSTRING_LEN(substr));
+    }
+
+    matched = match(p->pattern, StringValuePtr(m->text),
+                    start_index,
+                    length,
+                    RE2::UNANCHORED, m->matches, n);
+
+    if (matched) {
+      return matchdata;
     } else {
-
-      if (n < 0) {
-        n = p->pattern->NumberOfCapturingGroups();
-      }
-      /* Because match returns the whole match as well. */
-      n += 1;
-
-      matchdata = rb_class_new_instance(0, 0, re2_cMatchData);
-      Data_Get_Struct(matchdata, re2_matchdata, m);
-      m->matches = new(nothrow) re2::StringPiece[n];
-      m->regexp = self;
-      m->text = rb_str_dup(text);
-      rb_str_freeze(m->text);
-
-      if (m->matches == 0) {
-        rb_raise(rb_eNoMemError,
-                 "not enough memory to allocate StringPieces for matches");
-      }
-
-      m->number_of_matches = n;
-
-      int start_index = NIL_P(start_offset) ? 0L : FIX2INT(start_offset);
-      int length = static_cast<int>(RSTRING_LEN(m->text));
-
-      // If the start_index is specified, it will be a character
-      // index. Convert that to an octet index (FIXME: this can be
-      // done more efficiently, right?)
-      if (start_index) {
-        VALUE substr = rb_str_substr(m->text, 0, start_index);
-        start_index = static_cast<int>(RSTRING_LEN(substr));
-      }
-
-      matched = match(p->pattern, StringValuePtr(m->text),
-                      start_index,
-                      length,
-                      RE2::UNANCHORED, m->matches, n);
-
-      if (matched) {
-        return matchdata;
-      } else {
-        return Qnil;
-      }
+      return Qnil;
     }
   }
 
